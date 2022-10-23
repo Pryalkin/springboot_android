@@ -1,16 +1,20 @@
 package com.student.pryalkin.service.impl;
 
+import com.dropbox.core.v2.files.FileMetadata;
 import com.student.pryalkin.exception.CustomerNotFoundException;
 import com.student.pryalkin.model.Customer;
-import com.student.pryalkin.model.ExpandCustomer;
 import com.student.pryalkin.repository.CustomerRepo;
 import com.student.pryalkin.service.CustomerService;
+import com.student.pryalkin.service.DropboxService;
 import lombok.AllArgsConstructor;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -25,30 +29,23 @@ import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 public class CustomerServiceImpl implements CustomerService {
 
     private final CustomerRepo customerRepo;
+    private final DropboxService dropboxService;
 
     @Override
-    public Customer addCustomer(ExpandCustomer expandCustomer) throws IOException {
-        Customer customer = expandCustomer.getCustomer();
-        saveProfileImage(customer, expandCustomer.getProfileImage());
+    public Customer addCustomer(Customer customer, MultipartFile file) throws IOException {
+        saveProfileImage(customer, file);
         return customerRepo.save(customer);
     }
 
     private void saveProfileImage(Customer customer, MultipartFile profileImage) throws IOException {
         if (profileImage != null){
-            Path userFolder = Paths.get(USER_FOLDER + customer.getName() + customer.getSurname() + customer.getPatronymic()).toAbsolutePath().normalize();
-            if (!Files.exists(userFolder)){
-                Files.createDirectories(userFolder);
-            }
-            Files.deleteIfExists(Paths.get(userFolder + customer.getName() + customer.getSurname() + customer.getPatronymic() + DOT + JPG_EXTENSION));
-            Files.copy(profileImage.getInputStream(), userFolder.resolve(customer.getName() + customer.getSurname() + customer.getPatronymic() + DOT + JPG_EXTENSION), REPLACE_EXISTING);
-            customer.setImageUrl(setProfileImageUrl(customer.getName() + customer.getSurname() + customer.getPatronymic()));
+            String generate = generate();
+            customer.setImageUrl(setProfileImageUrl(generate, customer));
+            InputStream inputStream = profileImage.getInputStream();
+            dropboxService.uploadFile(customer.getImageUrl(), inputStream);
+            inputStream.close();
             customerRepo.save(customer);
         }
-    }
-
-    private String setProfileImageUrl(String customer) {
-        return ServletUriComponentsBuilder.fromCurrentContextPath().
-                path(USER_IMAGE_PATH + customer + FORWARD_SLASH + customer + DOT + JPG_EXTENSION).toUriString();
     }
 
     @Override
@@ -70,4 +67,13 @@ public class CustomerServiceImpl implements CustomerService {
         customerRepo.deleteById(entrant.getId());
         return customerRepo.findAll();
     }
+
+    private String setProfileImageUrl(String generate, Customer customer) {
+        return  "/image/" + generate + DOT + JPG_EXTENSION;
+    }
+
+    private String generate() {
+        return RandomStringUtils.randomAlphanumeric(10);
+    }
+
 }

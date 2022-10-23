@@ -1,7 +1,7 @@
 package com.student.pryalkin.contstants;
 
 public class FileConstant {
-    public static final String USER_IMAGE_PATH= "/user/image/";
+    public static final String USER_IMAGE_PATH= "/image/";
     public static final String JPG_EXTENSION = "jpg";
     public static final String USER_FOLDER = System.getProperty("user.home") + "/android/";
     public static final String OVERVIEW_FOLDER = "/overview";
